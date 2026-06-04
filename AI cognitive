@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Lab - Single Page</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body{
+    background:#020617;
+    color:white;
+    font-family:Arial,sans-serif;
+}
+.cell{
+    width:40px;
+    height:40px;
+    border:1px solid #334155;
+    cursor:pointer;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+.start{background:#22c55e;}
+.goal{background:#ef4444;}
+.wall{background:#475569;}
+.visited{background:#3b82f6;}
+.path{background:#eab308;}
+</style>
+</head>
+<body class="p-5">
+
+<h1 class="text-3xl font-bold text-center mb-5">
+AI Cognitive Lab - Best First Search
+</h1>
+
+<div class="flex justify-center gap-2 mb-4">
+<button onclick="setMode('start')" class="bg-green-600 px-3 py-2 rounded">Start</button>
+<button onclick="setMode('goal')" class="bg-red-600 px-3 py-2 rounded">Goal</button>
+<button onclick="setMode('wall')" class="bg-gray-600 px-3 py-2 rounded">Wall</button>
+<button onclick="setMode('clear')" class="bg-blue-600 px-3 py-2 rounded">Clear</button>
+<button onclick="runSearch()" class="bg-cyan-600 px-3 py-2 rounded">Run Search</button>
+<button onclick="resetGrid()" class="bg-yellow-600 px-3 py-2 rounded">Reset</button>
+</div>
+
+<div id="grid" class="grid grid-cols-10 gap-1 w-fit mx-auto"></div>
+
+<div class="text-center mt-5">
+<p id="status">Place Start and Goal nodes.</p>
+</div>
+
+<script>
+const rows = 10;
+const cols = 10;
+let mode = "wall";
+let start = null;
+let goal = null;
+
+const grid = document.getElementById("grid");
+
+for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+        const cell=document.createElement("div");
+        cell.className="cell";
+        cell.dataset.row=r;
+        cell.dataset.col=c;
+        cell.onclick=()=>handleCell(cell);
+        grid.appendChild(cell);
+    }
+}
+
+function setMode(m){
+    mode=m;
+}
+
+function handleCell(cell){
+
+    if(mode==="start"){
+        document.querySelectorAll(".start").forEach(x=>x.classList.remove("start"));
+        cell.className="cell start";
+        start=[+cell.dataset.row,+cell.dataset.col];
+    }
+
+    else if(mode==="goal"){
+        document.querySelectorAll(".goal").forEach(x=>x.classList.remove("goal"));
+        cell.className="cell goal";
+        goal=[+cell.dataset.row,+cell.dataset.col];
+    }
+
+    else if(mode==="wall"){
+        if(!cell.classList.contains("start") && !cell.classList.contains("goal"))
+            cell.classList.toggle("wall");
+    }
+
+    else if(mode==="clear"){
+        cell.className="cell";
+    }
+}
+
+function getCell(r,c){
+    return [...document.querySelectorAll(".cell")]
+    .find(x=>+x.dataset.row===r && +x.dataset.col===c);
+}
+
+function heuristic(a,b){
+    return Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]);
+}
+
+async function runSearch(){
+
+    if(!start || !goal){
+        alert("Place Start and Goal first");
+        return;
+    }
+
+    let open=[start];
+    let visited=new Set();
+    let parent={};
+
+    while(open.length){
+
+        open.sort((a,b)=>
+            heuristic(a,goal)-heuristic(b,goal)
+        );
+
+        let current=open.shift();
+        let key=current.join(",");
+
+        if(visited.has(key)) continue;
+
+        visited.add(key);
+
+        let cell=getCell(current[0],current[1]);
+
+        if(!cell.classList.contains("start") &&
+           !cell.classList.contains("goal")){
+            cell.classList.add("visited");
+        }
+
+        if(current[0]===goal[0] &&
+           current[1]===goal[1]){
+
+            let path=[];
+            let k=goal.join(",");
+
+            while(k){
+                path.push(k);
+                k=parent[k];
+            }
+
+            path.reverse();
+
+            for(let p of path){
+                let [r,c]=p.split(",").map(Number);
+                let pathCell=getCell(r,c);
+
+                if(!pathCell.classList.contains("start") &&
+                   !pathCell.classList.contains("goal")){
+                    pathCell.classList.add("path");
+                }
+
+                await sleep(100);
+            }
+
+            document.getElementById("status").innerText=
+            "Goal Found!";
+            return;
+        }
+
+        const dirs=[
+            [1,0],[-1,0],[0,1],[0,-1]
+        ];
+
+        for(let d of dirs){
+
+            let nr=current[0]+d[0];
+            let nc=current[1]+d[1];
+
+            if(nr<0||nr>=rows||nc<0||nc>=cols)
+                continue;
+
+            let nextCell=getCell(nr,nc);
+
+            if(nextCell.classList.contains("wall"))
+                continue;
+
+            let nk=nr+","+nc;
+
+            if(!visited.has(nk)){
+                parent[nk]=key;
+                open.push([nr,nc]);
+            }
+        }
+
+        await sleep(150);
+    }
+
+    document.getElementById("status").innerText=
+    "No Path Found";
+}
+
+function sleep(ms){
+    return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+function resetGrid(){
+    document.querySelectorAll(".cell").forEach(cell=>{
+        cell.className="cell";
+    });
+    start=null;
+    goal=null;
+    document.getElementById("status").innerText=
+    "Place Start and Goal nodes.";
+}
+</script>
+
+</body>
+</html>
